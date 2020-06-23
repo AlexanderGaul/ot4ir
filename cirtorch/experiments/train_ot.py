@@ -125,33 +125,7 @@ parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
 min_loss = float('inf')
 
 
-class OTContrastiveLoss(nn.Module):
-    """CONTRASTIVELOSS layer that computes contrastive loss for a batch of images:
-        Q query tuples, each packed in the form of (q,p,n1,..nN)
 
-    Args:
-        x: tuples arranges in columns as [q,p,n1,nN, ... ]
-        label: -1 for query, 1 for corresponding positive, 0 for corresponding negative
-        margin: contrastive loss margin. Default: 0.7
-
-    >>> contrastive_loss = ContrastiveLoss(margin=0.7)
-    >>> input = torch.randn(128, 35, requires_grad=True)
-    >>> label = torch.Tensor([-1, 1, 0, 0, 0, 0, 0] * 5)
-    >>> output = contrastive_loss(input, label)
-    >>> output.backward()
-    """
-
-    def __init__(self, margin=0.7, eps=1e-6):
-        super(OTContrastiveLoss, self).__init__()
-        self.margin = margin
-        self.eps = eps
-
-    def forward(self, x, att, label):
-        return ot_loss(x, att, label, margin=self.margin, eps=self.eps)
-
-    def __repr__(self):
-        return self.__class__.__name__ + '(' + 'margin=' + '{:.4f}'.format(self.margin) + ')'
-# end OTContrastiveLoss
 def main():
     global args, min_loss
     args = parser.parse_args()
@@ -401,12 +375,22 @@ def train(train_loader, model, criterion, optimizer, epoch):
         ni = len(input[0]) # number of images per tuple
 
         for q in range(nq):
-            output = torch.zeros(model.meta['outputdim'], ni).cuda()
-            for imi in range(ni):
 
-                # compute output vector for image imi
-                _, features,
-                output[:, imi] = model(input[q][imi].cuda()).squeeze()
+
+            #output = torch.zeros(model.meta['outputdim'], ni).cuda()
+            # for imi in range(ni):
+            #
+            #    # compute output vector for image imi
+            #    _, features, att = model(input[q][imi].cuda())
+            #
+            #
+            #    output[:, imi] = model(input[q][imi].cuda()).squeeze()
+
+            input_batch = torch.stack([input[q][imi] for imi in range(ni)]).cuda()
+
+            _, ni_features, ni_attention = model(input_batch)
+
+
 
             # reducing memory consumption:
             # compute loss for this query tuple only
@@ -415,8 +399,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
             # the optimization step is performed for the full batch later
             # /* do optimal tarnsport in a batch??? */
 
-
-            loss = criterion(output, target[q].cuda())
+            loss = criterion(ni_features, ni_attention, target[q].cuda())
             losses.update(loss.item())
             loss.backward()
 
@@ -469,14 +452,21 @@ def validate(val_loader, model, criterion, epoch):
         output = torch.zeros(model.meta['outputdim'], nq*ni).cuda()
 
         for q in range(nq):
-            for imi in range(ni):
+            input_batch = torch.stack([input[q][imi] for imi in range(ni)]).cuda()
+
+            _, ni_features, ni_attention = model(input_batch)
+
+            loss = criterion(ni_features, ni_attention, target[q].cuda())
+            losses.update(loss.item())
+
+            # for imi in range(ni):
 
                 # compute output vector for image imi of query q
-                output[:, q*ni + imi] = model(input[q][imi].cuda()).squeeze()
+             #   output[:, q*ni + imi] = model(input[q][imi].cuda()).squeeze()
 
         # no need to reduce memory consumption (no backward pass):
         # compute loss for the full batch
-        loss = criterion(output, torch.cat(target).cuda())
+        # loss = criterion(output, torch.cat(target).cuda())
 
         # record loss
         losses.update(loss.item()/nq, nq)
@@ -707,6 +697,33 @@ def ot_loss(features, attention, label, margin, eps) :
         return torch.clamp(margin-distance, min=0)
 
 
+class OTContrastiveLoss(nn.Module):
+    """CONTRASTIVELOSS layer that computes contrastive loss for a batch of images:
+        Q query tuples, each packed in the form of (q,p,n1,..nN)
+
+    Args:
+        x: tuples arranges in columns as [q,p,n1,nN, ... ]
+        label: -1 for query, 1 for corresponding positive, 0 for corresponding negative
+        margin: contrastive loss margin. Default: 0.7
+
+    >>> contrastive_loss = ContrastiveLoss(margin=0.7)
+    >>> input = torch.randn(128, 35, requires_grad=True)
+    >>> label = torch.Tensor([-1, 1, 0, 0, 0, 0, 0] * 5)
+    >>> output = contrastive_loss(input, label)
+    >>> output.backward()
+    """
+
+    def __init__(self, margin=0.7, eps=1e-6):
+        super(OTContrastiveLoss, self).__init__()
+        self.margin = margin
+        self.eps = eps
+
+    def forward(self, x, att, label):
+        return ot_loss(x, att, label, margin=self.margin, eps=self.eps)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(' + 'margin=' + '{:.4f}'.format(self.margin) + ')'
+# end OTContrastiveLoss
 
 
 
