@@ -333,7 +333,9 @@ def extract_vectors_attention(net, images, image_size, transform, bbxs=None, ms=
             input = input.cuda()
 
             _, features, att = net(input) # _, : N x C x W x H, : N x W x H
-            vecs[:, i] = ( features * att.unsqueeze(1) ).sum((2,3)).squeeze(0)
+            scaled = features * att
+            aggregate = scaled.sum((2,3))
+            vecs[:, i] = aggregate.squeeze(0)
 
             if (i+1) % print_freq == 0 or (i+1) == len(images):
                 print('\r>>>> {}/{} done...'.format((i+1), len(images)), end='')

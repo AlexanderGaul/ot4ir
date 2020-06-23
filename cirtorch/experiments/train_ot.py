@@ -325,7 +325,7 @@ def main():
 
     # evaluate the network before starting
     # this might not be necessary?
-    test(args.test_datasets, model)
+    # test(args.test_datasets, model)
 
     for epoch in range(start_epoch, args.epochs):
 
