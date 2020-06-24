@@ -386,7 +386,9 @@ def train(train_loader, model, criterion, optimizer, epoch):
             #
             #    output[:, imi] = model(input[q][imi].cuda()).squeeze()
 
-            input_batch = torch.stack([input[q][imi] for imi in range(ni)]).cuda()
+            # TODO: stretch resolutionn to 1024 x 683
+
+            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
@@ -452,7 +454,7 @@ def validate(val_loader, model, criterion, epoch):
         output = torch.zeros(model.meta['outputdim'], nq*ni).cuda()
 
         for q in range(nq):
-            input_batch = torch.stack([input[q][imi] for imi in range(ni)]).cuda()
+            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
