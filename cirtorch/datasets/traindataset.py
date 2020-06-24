@@ -194,7 +194,7 @@ class TuplesDataset(data.Dataset):
             # extract query vectors
             qvecs = torch.zeros(net.meta['outputdim'], len(self.qidxs)).cuda()
             for i, input in enumerate(loader):
-                qvecs[:, i] = net(input.cuda()).data.squeeze()
+                qvecs[:, i] = net(input.cuda())[0].data.squeeze()
                 if (i+1) % self.print_freq == 0 or (i+1) == len(self.qidxs):
                     print('\r>>>> {}/{} done...'.format(i+1, len(self.qidxs)), end='')
             print('')
@@ -208,7 +208,7 @@ class TuplesDataset(data.Dataset):
             # extract negative pool vectors
             poolvecs = torch.zeros(net.meta['outputdim'], len(idxs2images)).cuda()
             for i, input in enumerate(loader):
-                poolvecs[:, i] = net(input.cuda()).data.squeeze()
+                poolvecs[:, i] = net(input.cuda())[0].data.squeeze()
                 if (i+1) % self.print_freq == 0 or (i+1) == len(idxs2images):
                     print('\r>>>> {}/{} done...'.format(i+1, len(idxs2images)), end='')
             print('')
