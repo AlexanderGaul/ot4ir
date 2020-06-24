@@ -121,11 +121,12 @@ class ImageRetrievalNet(nn.Module):
         # if whiten exist: pooled features -> whiten -> norm
         if self.whiten is not None:
             o = self.norm(self.whiten(o))
-
-        att = self.att(features)
+        
+        features_re = F.max_pool2d(features, 4, 4)
+        att = self.att(features_re)
 
         # permute so that it is Dx1 column vector per image (DxN if many images)
-        return o.permute(1,0), features, att
+        return o.permute(1,0), features_re, att
 
     def __repr__(self):
         tmpstr = super(ImageRetrievalNet, self).__repr__()[:-1]

@@ -388,7 +388,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
             # TODO: stretch resolutionn to 1024 x 683
 
-            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
+            input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)], dim=0).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
@@ -454,7 +454,7 @@ def validate(val_loader, model, criterion, epoch):
         output = torch.zeros(model.meta['outputdim'], nq*ni).cuda()
 
         for q in range(nq):
-            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
+            input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)], dim = 0).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
@@ -645,7 +645,8 @@ def pairwise_distances(x, y) :
 def log_sinkhorn_iterations(Z, log_mu, log_nu, iters: int):
     """ Perform Sinkhorn Normalization in Log-space for stability"""
     u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
-    for _ in range(iters):
+    for iter in range(iters):
+        print(iter)
         u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
         v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
     return Z + u.unsqueeze(2) + v.unsqueeze(1)
@@ -660,8 +661,8 @@ def log_optimal_transport(M, mu, nu, iters: int):
     # trash
     # ms, ns = (m * one).to(M), (n * one).to(M)
     # norm = - (ms + ns).log()
-    log_mu = mu.log()
-    log_nu = nu.log()
+    log_mu = mu.log().unsqueeze(0)
+    log_nu = nu.log().unsqueeze(1)
     # log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
     # log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
     # log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
@@ -681,18 +682,26 @@ def ot_loss(features, attention, label, margin, eps) :
 
     """
     N, C, W, H = features.shape
-
-    query_features = features[0, :].reshape((C, -1))  # : C x (W*H)
-    target_features = features[1:, :].reshape((-1, C, W*H))
-
+    
+   
+    query_features = features[0, :].reshape((-1, C))  # : C x (W*H)
+    target_features = features[1:, :].reshape((-1, C, W*H)).permute(1, 0, 2).reshape((-1, C)) 
+    
     query_att = attention[0, :].flatten()
-    target_att = attention[1:, :].flatten().reshape(N-1, C, H*W).transpose(1,2).reshape((N-1)*(H*W), C).transpose(0,1)
+    target_att = attention[1:, :].flatten().reshape((N-1)*(H*W))
 
     M = pairwise_distances(query_features, target_features)
-
-    P = log_optimal_transport(M, query_att, target_att, 1000).exp()
-
-    distance = ( target_att[None] * query_features.transpose(1,0) - torch.mm(P, target_features) ).norm(dim=1).sum()
+    
+    P = log_optimal_transport(M, query_att, target_att, 20).exp()
+    
+    print("SHAPES")
+    print(query_att[None])
+    print(query_features.transpose(1,0))
+    print((query_att[None] * query_features.transpose(1,0)).shape)
+    print(P.shape)
+    print(target_features.shape)
+    
+    distance = ( query_att[None] * query_features.transpose(1,0) - torch.mm(P, target_features) ).norm(dim=1).sum()
     if label :
         return distance
     else :
