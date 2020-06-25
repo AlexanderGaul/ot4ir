@@ -16,7 +16,7 @@ import torch.utils.data
 import torchvision.transforms as transforms
 import torchvision.models as models
 
-from cirtorch.networks.imageretrievalnet import init_network, extract_vectors, extract_vectors_attention
+from cirtorch.networks.imageretrievalnet import init_network, extract_vectors, extract_vectors_attention, AttRetrievalNet
 from cirtorch.layers.loss import ContrastiveLoss, TripletLoss
 from cirtorch.datasets.datahelpers import collate_tuples, cid2filename
 from cirtorch.datasets.traindataset import TuplesDataset
@@ -122,6 +122,13 @@ parser.add_argument('--print-freq', default=10, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
                     help='name of the latest checkpoint (default: None)')
 
+## STORE DATA LOADER ##
+parser.add_argument('--store-loader', default='', type=str, metavar='FILENAME',
+                    help='')
+## LOAD DATA LOADER ##
+parser.add_argument('--load-loader', default='', type=str, metavar='FILENAME',
+                    help='')
+
 min_loss = float('inf')
 
 
@@ -166,7 +173,7 @@ def main():
 
     # set cuda visible device
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
-    
+
     # set random seeds
     # TODO: maybe pass as argument in future implementation?
     torch.manual_seed(0)
@@ -242,6 +249,12 @@ def main():
     exp_decay = math.exp(-0.01)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=exp_decay)
 
+
+    ## WRAP BACKBONE ##
+    model = AttRetrievalNet(model.features, model.meta)
+
+
+
     # optionally resume from a checkpoint
     start_epoch = 0
     if args.resume :
@@ -267,20 +280,27 @@ def main():
         transforms.ToTensor(),
         normalize,
     ])
-    train_dataset = TuplesDataset(
-        name=args.training_dataset,
-        mode='train',
-        imsize=args.image_size,
-        nnum=args.neg_num,
-        qsize=args.query_size,
-        poolsize=args.pool_size,
-        transform=transform
-    )
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True, sampler=None,
-        drop_last=True, collate_fn=collate_tuples
-    )
+    ## RESUME DATA LOADER ##
+    if args.load_loader :
+        if os.path.isfile(args.load_loader):
+            train_loader = torch.load(args.load_loader)
+    else :
+        train_dataset = TuplesDataset(
+            name=args.training_dataset,
+            mode='train',
+            imsize=args.image_size,
+            nnum=args.neg_num,
+            qsize=args.query_size,
+            poolsize=args.pool_size,
+            transform=transform
+        )
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=args.batch_size, shuffle=True,
+            num_workers=args.workers, pin_memory=True, sampler=None,
+            drop_last=True, collate_fn=collate_tuples
+        )
+
+
     if args.val:
         val_dataset = TuplesDataset(
             name=args.training_dataset,
@@ -299,8 +319,7 @@ def main():
 
     # evaluate the network before starting
     # this might not be necessary?
-    # test(args.test_datasets, model)
-
+    #
     for epoch in range(start_epoch, args.epochs):
 
         # set manual seeds per epoch
@@ -340,6 +359,7 @@ def main():
             'min_loss': min_loss,
             'optimizer' : optimizer.state_dict(),
         }, is_best, args.directory)
+    test(args.test_datasets, model)
 # end main
 
 
@@ -356,8 +376,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
 
     # create tuples for training
-    avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
-    torch.save
+    ## TRY TO RECOVER TRAIN LOADER ##
+    if not args.load_loader :
+        print('create epoch tuples')
+        avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
+        if args.store_loader :
+            torch.save(train_loader, args.store_loader)
+    
 
     # switch to train mode
     model.train()
@@ -389,7 +414,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
             # TODO: stretch resolutionn to 1024 x 683
 
-            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
+            input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)], dim=0).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
@@ -455,7 +480,7 @@ def validate(val_loader, model, criterion, epoch):
         output = torch.zeros(model.meta['outputdim'], nq*ni).cuda()
 
         for q in range(nq):
-            input_batch = torch.stack([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)]).cuda()
+            input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)], dim = 0).cuda()
 
             _, ni_features, ni_attention = model(input_batch)
 
@@ -646,7 +671,8 @@ def pairwise_distances(x, y) :
 def log_sinkhorn_iterations(Z, log_mu, log_nu, iters: int):
     """ Perform Sinkhorn Normalization in Log-space for stability"""
     u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
-    for _ in range(iters):
+    for iter in range(iters):
+        # if iter % 20 == 0: print(iter)
         u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
         v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
     return Z + u.unsqueeze(2) + v.unsqueeze(1)
@@ -661,8 +687,8 @@ def log_optimal_transport(M, mu, nu, iters: int):
     # trash
     # ms, ns = (m * one).to(M), (n * one).to(M)
     # norm = - (ms + ns).log()
-    log_mu = mu.log()
-    log_nu = nu.log()
+    log_mu = mu.log().unsqueeze(0)
+    log_nu = nu.log().unsqueeze(0)
     # log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
     # log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
     # log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
@@ -681,23 +707,31 @@ def ot_loss(features, attention, label, margin, eps) :
     Returns:
 
     """
-    N, C, W, H = features.shape
-
-    query_features = features[0, :].reshape((C, -1))  # : C x (W*H)
-    target_features = features[1:, :].reshape((-1, C, W*H))
-
+    N, C, H, W = features.shape
+    
+   
+    query_features = features[0, :].reshape((-1, C))  # : C x (W*H)
+    target_features = features[1:, :].reshape((-1, C, W*H)).permute(1, 0, 2).reshape((-1, C)) 
+    
     query_att = attention[0, :].flatten()
-    target_att = attention[1:, :].flatten().reshape(N-1, C, H*W).transpose(1,2).reshape((N-1)*(H*W), C).transpose(0,1)
-
+    target_att = attention[1:, :].flatten().reshape((N-1)*(H*W))
+    ## select top k attention values ##
+    # q_sel = torch.topk( query_att, 10 )
+    # t_sel = torch.topk( attention[1:, :].reshape(-1, H*W), 10, dim=1 )
+    # 
+    # qf_sel = query_features[q_sel]
+    # tf_sel = target_features.reshape(N-1, -1, C).gather( 1, t_sel.unsqueeze(-1).repeat(C) )
+    # 
+    # qat_sel = query_att[q_sel]
+    # tat_sel = target_att.reshape(N-1, -1).gather( 1, t_sel )
+    
     M = pairwise_distances(query_features, target_features)
-
-    P = log_optimal_transport(M, query_att, target_att, 1000).exp()
-
-    distance = ( target_att[None] * query_features.transpose(1,0) - torch.mm(P, target_features) ).norm(dim=1).sum()
-    if label :
-        return distance
-    else :
-        return torch.clamp(margin-distance, min=0)
+    
+    P = log_optimal_transport(M, query_att, target_att, 500).exp()
+    
+    distance = ( query_att.unsqueeze(1) * query_features - torch.mm(P, target_features) ).norm(dim=1)
+    lbl = label[1:].unsqueeze(1).repeat(1, H*W).flatten().unsqueeze(1)
+    return ( 0.5 * lbl * torch.pow( distance, 2 ) + 0.5 * (1-lbl) * torch.pow( torch.clamp(margin-distance, min=0), 2 ) ).sum()
 
 
 class OTContrastiveLoss(nn.Module):
@@ -741,6 +775,7 @@ def mutual_max(P) :
     Returns:
 
     """
+    """
     max0, max1 = P.max(1), P.max(0)
     indices0, indices1 = max0.indices, max1.indices
     mutual0 = torch.LongTensor(range(indices0.shape[0])) == indices1.gather(0, indices0)
@@ -757,6 +792,8 @@ def mutual_max(P) :
 
     # make norm
     return indices0, indices1, mscores0, mscores1
+    """
+
 
 if __name__ == '__main__':
     main()

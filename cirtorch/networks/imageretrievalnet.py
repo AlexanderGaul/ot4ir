@@ -99,7 +99,6 @@ class ImageRetrievalNet(nn.Module):
         self.norm = L2N()
         self.meta = meta
 
-        self.att = FeatureAttention(meta['outputdim'])
     
     def forward(self, x):
         # x -> features
@@ -121,11 +120,13 @@ class ImageRetrievalNet(nn.Module):
         # if whiten exist: pooled features -> whiten -> norm
         if self.whiten is not None:
             o = self.norm(self.whiten(o))
-
-        att = self.att(features)
+        
+        # features_re = F.max_pool2d(features, 4, 4)
+        # N, C, H, W = features_re.shape
+        # att = F.softmax( self.att(features_re).reshape(N, 1, -1), dim=2 ).reshape(N, 1, H, W)
 
         # permute so that it is Dx1 column vector per image (DxN if many images)
-        return o.permute(1,0), features, att
+        return o.permute(1,0) #, features_re, att
 
     def __repr__(self):
         tmpstr = super(ImageRetrievalNet, self).__repr__()[:-1]
@@ -512,4 +513,11 @@ class AttRetrievalNet(nn.Module) :
     def forward(self, input):
         x = self.features(input)
 
+        x_re = F.max_pool2d(x, 4, 4)
+        N, C, H, W = x_re.shape
+        att = F.softmax( self.att(x_re).reshape(N, 1, -1), dim=2 ).reshape(N, 1, H, W)
+
+        agg = # aggregate with attention
+
+        return agg, x_re, att
 
