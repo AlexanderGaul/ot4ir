@@ -501,3 +501,15 @@ class FeatureAttention(nn.Module) :
         att = self.conv2(x)
         return att
 
+
+class AttRetrievalNet(nn.Module) :
+    def __init__(self, features, meta):
+        super(self, AttRetrievalNet).__init__()
+        self.features = features
+        self.meta = meta
+        self.att = FeatureAttention(meta['outputdim'])
+
+    def forward(self, input):
+        x = self.features(input)
+
+
