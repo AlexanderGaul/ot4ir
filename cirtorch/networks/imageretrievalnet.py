@@ -123,7 +123,8 @@ class ImageRetrievalNet(nn.Module):
             o = self.norm(self.whiten(o))
         
         features_re = F.max_pool2d(features, 4, 4)
-        att = self.att(features_re)
+        N, C, H, W = features_re.shape
+        att = F.softmax( self.att(features_re).reshape(N, 1, -1), dim=2 ).reshape(N, 1, H, W)
 
         # permute so that it is Dx1 column vector per image (DxN if many images)
         return o.permute(1,0), features_re, att

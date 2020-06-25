@@ -122,6 +122,13 @@ parser.add_argument('--print-freq', default=10, type=int,
 parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
                     help='name of the latest checkpoint (default: None)')
 
+## STORE DATA LOADER ##
+parser.add_argument('--store-loader', default='', type=str, metavar='FILENAME',
+                    help='')
+## LOAD DATA LOADER ##
+parser.add_argument('--load-loader', default='', type=str, metavar='FILENAME',
+                    help='')
+
 min_loss = float('inf')
 
 
@@ -267,20 +274,27 @@ def main():
         transforms.ToTensor(),
         normalize,
     ])
-    train_dataset = TuplesDataset(
-        name=args.training_dataset,
-        mode='train',
-        imsize=args.image_size,
-        nnum=args.neg_num,
-        qsize=args.query_size,
-        poolsize=args.pool_size,
-        transform=transform
-    )
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=args.workers, pin_memory=True, sampler=None,
-        drop_last=True, collate_fn=collate_tuples
-    )
+    ## RESUME DATA LOADER ##
+    if args.load_loader :
+        if os.path.isfile(args.load_loader):
+            train_loader = torch.load(args.load_loader)
+    else :
+        train_dataset = TuplesDataset(
+            name=args.training_dataset,
+            mode='train',
+            imsize=args.image_size,
+            nnum=args.neg_num,
+            qsize=args.query_size,
+            poolsize=args.pool_size,
+            transform=transform
+        )
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=args.batch_size, shuffle=True,
+            num_workers=args.workers, pin_memory=True, sampler=None,
+            drop_last=True, collate_fn=collate_tuples
+        )
+
+	
     if args.val:
         val_dataset = TuplesDataset(
             name=args.training_dataset,
@@ -316,7 +330,7 @@ def main():
         # print('>> Features lr: {:.2e}; Pooling lr: {:.2e}'.format(lr_feat, lr_pool))
 
         # train for one epoch on train set
-        # TRAINING
+        ## TRAINING ##
         loss = train(train_loader, model, criterion, optimizer, epoch)
 
         # evaluate on validation set
@@ -356,8 +370,13 @@ def train(train_loader, model, criterion, optimizer, epoch):
     losses = AverageMeter()
 
     # create tuples for training
-    avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
-
+    ## TRY TO RECOVER TRAIN LOADER ##
+    if not args.load_loader :
+        print('create epoch tuples')
+        avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
+        if args.store_loader :
+            torch.save(train_loader, args.store_loader)
+    
     # switch to train mode
     model.train()
     model.apply(set_batchnorm_eval)
@@ -646,7 +665,7 @@ def log_sinkhorn_iterations(Z, log_mu, log_nu, iters: int):
     """ Perform Sinkhorn Normalization in Log-space for stability"""
     u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
     for iter in range(iters):
-        print(iter)
+        # if iter % 20 == 0: print(iter)
         u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
         v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
     return Z + u.unsqueeze(2) + v.unsqueeze(1)
@@ -662,7 +681,7 @@ def log_optimal_transport(M, mu, nu, iters: int):
     # ms, ns = (m * one).to(M), (n * one).to(M)
     # norm = - (ms + ns).log()
     log_mu = mu.log().unsqueeze(0)
-    log_nu = nu.log().unsqueeze(1)
+    log_nu = nu.log().unsqueeze(0)
     # log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
     # log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
     # log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
@@ -681,7 +700,7 @@ def ot_loss(features, attention, label, margin, eps) :
     Returns:
 
     """
-    N, C, W, H = features.shape
+    N, C, H, W = features.shape
     
    
     query_features = features[0, :].reshape((-1, C))  # : C x (W*H)
@@ -689,23 +708,23 @@ def ot_loss(features, attention, label, margin, eps) :
     
     query_att = attention[0, :].flatten()
     target_att = attention[1:, :].flatten().reshape((N-1)*(H*W))
-
+    ## select top k attention values ##
+    # q_sel = torch.topk( query_att, 10 )
+    # t_sel = torch.topk( attention[1:, :].reshape(-1, H*W), 10, dim=1 )
+    # 
+    # qf_sel = query_features[q_sel]
+    # tf_sel = target_features.reshape(N-1, -1, C).gather( 1, t_sel.unsqueeze(-1).repeat(C) )
+    # 
+    # qat_sel = query_att[q_sel]
+    # tat_sel = target_att.reshape(N-1, -1).gather( 1, t_sel )
+    
     M = pairwise_distances(query_features, target_features)
     
-    P = log_optimal_transport(M, query_att, target_att, 20).exp()
+    P = log_optimal_transport(M, query_att, target_att, 500).exp()
     
-    print("SHAPES")
-    print(query_att[None])
-    print(query_features.transpose(1,0))
-    print((query_att[None] * query_features.transpose(1,0)).shape)
-    print(P.shape)
-    print(target_features.shape)
-    
-    distance = ( query_att[None] * query_features.transpose(1,0) - torch.mm(P, target_features) ).norm(dim=1).sum()
-    if label :
-        return distance
-    else :
-        return torch.clamp(margin-distance, min=0)
+    distance = ( query_att.unsqueeze(1) * query_features - torch.mm(P, target_features) ).norm(dim=1)
+    lbl = label[1:].unsqueeze(1).repeat(1, H*W).flatten().unsqueeze(1)
+    return ( 0.5 * lbl * torch.pow( distance, 2 ) + 0.5 * (1-lbl) * torch.pow( torch.clamp(margin-distance, min=0), 2 ) ).sum()
 
 
 class OTContrastiveLoss(nn.Module):
@@ -749,6 +768,7 @@ def mutual_max(P) :
     Returns:
 
     """
+    """
     max0, max1 = P.max(1), P.max(0)
     indices0, indices1 = max0.indices, max1.indices
     mutual0 = torch.LongTensor(range(indices0.shape[0])) == indices1.gather(0, indices0)
@@ -765,6 +785,8 @@ def mutual_max(P) :
 
     # make norm
     return indices0, indices1, mscores0, mscores1
+    """
+
 
 if __name__ == '__main__':
     main()
