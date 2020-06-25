@@ -333,9 +333,8 @@ def extract_vectors_attention(net, images, image_size, transform, bbxs=None, ms=
         for i, input in enumerate(loader):
             input = input.cuda()
 
-            _, features, att = net(input) # _, : N x C x W x H, : N x W x H
-            scaled = features * att
-            aggregate = scaled.sum((2,3))
+            aggregate, features, att = net(input) # _, : N x C x W x H, : N x W x H
+
             vecs[:, i] = aggregate.squeeze(0)
 
             if (i+1) % print_freq == 0 or (i+1) == len(images):
@@ -517,7 +516,8 @@ class AttRetrievalNet(nn.Module) :
         N, C, H, W = x_re.shape
         att = F.softmax( self.att(x_re).reshape(N, 1, -1), dim=2 ).reshape(N, 1, H, W)
 
-        agg = # aggregate with attention
+        scaled = x_re * att
+        agg = scaled.sum((2, 3))
 
         return agg, x_re, att
 
