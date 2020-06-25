@@ -316,7 +316,7 @@ def main():
         # print('>> Features lr: {:.2e}; Pooling lr: {:.2e}'.format(lr_feat, lr_pool))
 
         # train for one epoch on train set
-        # TRAINING
+        ## TRAINING ##
         loss = train(train_loader, model, criterion, optimizer, epoch)
 
         # evaluate on validation set
@@ -357,6 +357,7 @@ def train(train_loader, model, criterion, optimizer, epoch):
 
     # create tuples for training
     avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
+    torch.save
 
     # switch to train mode
     model.train()
