@@ -506,6 +506,10 @@ class AttRetrievalNet(nn.Module) :
     def __init__(self, features, meta):
         super(AttRetrievalNet, self).__init__()
         self.features = features
+
+        for i in range(len(features) - 2) :
+            features[i].requires_grad = False
+
         self.meta = meta
         self.att = FeatureAttention(meta['outputdim'])
 
