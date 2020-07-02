@@ -504,7 +504,7 @@ class FeatureAttention(nn.Module) :
 
 class AttRetrievalNet(nn.Module) :
     def __init__(self, features, meta):
-        super(self, AttRetrievalNet).__init__()
+        super(AttRetrievalNet, self).__init__()
         self.features = features
         self.meta = meta
         self.att = FeatureAttention(meta['outputdim'])
