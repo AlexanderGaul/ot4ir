@@ -31,8 +31,8 @@ parser = argparse.ArgumentParser(description='Training script')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size')
 parser.add_argument('--num_workers', type=int, default=4, help='number of workers for data loading')
 
-parser.add_argument('--dataset_path', type=str, default='', help='path to the dataset')
-parser.add_argument('--scene_info_path', type=str, default='', help='path to the processed scenes')
+parser.add_argument('--dataset_path', type=str, default='', help='/storage/group/cvpr/zhouq/MegaDepth_v1')
+parser.add_argument('--scene_info_path', type=str, default='', help='storage/group/cvpr/zhouq/MegaDepth_v1_undistorted')
 parser.add_argument('--preprocessing', type=str, default='torch', help='image preprocessing (caffe or torch)')
 
 parser.add_argument('--num_epochs', type=int, default=10, help='number of training epochs')
