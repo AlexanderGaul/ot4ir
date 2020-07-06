@@ -10,8 +10,11 @@ import numpy as np
 
 import argparse
 
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+
+matplotlib.use('Agg')
 
 import torch
 
@@ -165,7 +168,7 @@ for dataset in datasets:
 
         ax[0].imshow(image)
 
-        ax[0].imshow(attention.cpu().numpy())
+        ax[1].imshow(attention.cpu().numpy())
 
         # todo add i
         fig.savefig('{}image{}_{}.png'.format(args.image_path, dataset, i))
