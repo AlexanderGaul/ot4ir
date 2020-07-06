@@ -15,7 +15,7 @@ from d2net.lib.dataset import MegaDepthDataset
 
 from d2net.lib.exceptions import NoGradientError
 
-from networks.networks import MaxAttNet
+from networks.max_location import MaxAttNet
 
 from loss.loss_megadepth import ot_loss
 
