@@ -112,6 +112,9 @@ model = init_network(model_params)
 checkpoint = torch.load(args.model_path)
 start_epoch = checkpoint['epoch']
 min_loss = checkpoint['min_loss']
+
+print('>> loading model')
+
 model.load_state_dict(checkpoint['state_dict'])
 
 # for testing we use image size of max 1024
@@ -162,6 +165,7 @@ for dataset in datasets:
         model = AttRetrievalNet(model.features, model.meta)
 
         checkpoint = torch.load(args.resume)
+        print(checkpoint['state_dict'])
         model.load_state_dict(checkpoint['state_dict'])
 
 
