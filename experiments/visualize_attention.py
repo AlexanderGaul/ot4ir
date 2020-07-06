@@ -114,7 +114,6 @@ start_epoch = checkpoint['epoch']
 min_loss = checkpoint['min_loss']
 
 print('>> loading model')
-
 model.load_state_dict(checkpoint['state_dict'])
 
 # for testing we use image size of max 1024
