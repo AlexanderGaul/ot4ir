@@ -106,7 +106,8 @@ model_params['whitening'] = args.whitening
 model_params['pretrained'] = args.pretrained
 
 model = init_network(model_params)
-
+# very ghetto
+model = AttRetrievalNet(model.features, model.meta)
 
 # TODO actually load model
 checkpoint = torch.load(args.model_path)
@@ -159,15 +160,6 @@ for dataset in datasets:
         # todo load image manually without transform
 
         image = mpimg.imread(qimages[i])
-
-
-
-        model = AttRetrievalNet(model.features, model.meta)
-
-        checkpoint = torch.load(args.resume)
-        print(checkpoint['state_dict'])
-        model.load_state_dict(checkpoint['state_dict'])
-
 
 
         fig, ax = plt.subplots(2, 1)
