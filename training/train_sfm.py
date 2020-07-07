@@ -48,6 +48,30 @@ parser.add_argument('--eval-metric', type=str, default='euclidean')
 parser.add_argument('--loss-margin', '-lm', metavar='LM', default=0.7, type=float,
                     help='loss margin: (default: 0.7)')
 
+# train/val options specific for image retrieval learning
+parser.add_argument('--image-size', default=1024, type=int, metavar='N',
+                    help='maximum size of longer image side used for training (default: 1024)')
+parser.add_argument('--neg-num', '-nn', default=5, type=int, metavar='N',
+                    help='number of negative image per train/val tuple (default: 5)')
+parser.add_argument('--query-size', '-qs', default=2000, type=int, metavar='N',
+                    help='number of queries randomly drawn per one train epoch (default: 2000)')
+parser.add_argument('--pool-size', '-ps', default=20000, type=int, metavar='N',
+                    help='size of the pool for hard negative mining (default: 20000)')
+
+
+parser.add_argument('--lr', '--learning-rate', default=1e-6, type=float,
+                    metavar='LR', help='initial learning rate (default: 1e-6)')
+
+parser.add_argument('--workers', '-j', default=8, type=int, metavar='N',
+                    help='number of data loading workers (default: 8)')
+parser.add_argument('--epochs', default=100, type=int, metavar='N',
+                    help='number of total epochs to run (default: 100)')
+parser.add_argument('--batch-size', '-b', default=5, type=int, metavar='N',
+                    help='number of (q,p,n1,...,nN) tuples in a mini-batch (default: 5)')
+parser.add_argument('--update-every', '-u', default=1, type=int, metavar='N',
+                    help='update model weights every N batches, used to handle really large batches, ' +
+                        'batch_size effectively becomes update_every x batch_size (default: 1)')
+
 
 # CHECKPOINTS
 parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
