@@ -68,7 +68,8 @@ parser.add_argument('--query-size', '-qs', default=2000, type=int, metavar='N',
                     help='number of queries randomly drawn per one train epoch (default: 2000)')
 parser.add_argument('--pool-size', '-ps', default=20000, type=int, metavar='N',
                     help='size of the pool for hard negative mining (default: 20000)')
-
+parser.add_argument('--weight-decay', '--wd', default=1e-6, type=float,
+                    metavar='W', help='weight decay (default: 1e-6)')
 
 parser.add_argument('--lr', '--learning-rate', default=1e-6, type=float,
                     metavar='LR', help='initial learning rate (default: 1e-6)')
