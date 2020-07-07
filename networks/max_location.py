@@ -9,7 +9,6 @@ class Backbone(nn.Module) :
         super(Backbone, self).__init__()
 
         model = models.resnet34(pretrained=True)
-        model.children()
         self.model = nn.Sequential(*list(model.children())[:-2])
 
         self.num_channels = 512
