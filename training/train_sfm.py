@@ -180,21 +180,7 @@ def main():
         )
 
 
-    if args.val:
-        val_dataset = TuplesDataset(
-            name=args.training_dataset,
-            mode='val',
-            imsize=args.image_size,
-            nnum=args.neg_num,
-            qsize=float('Inf'),
-            poolsize=float('Inf'),
-            transform=transform
-        )
-        val_loader = torch.utils.data.DataLoader(
-            val_dataset, batch_size=args.batch_size, shuffle=False,
-            num_workers=args.workers, pin_memory=True,
-            drop_last=True, collate_fn=collate_tuples
-        )
+
 
     # evaluate the network before starting
     # this might not be necessary?
