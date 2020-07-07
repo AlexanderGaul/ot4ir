@@ -91,7 +91,8 @@ parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
 
 parser.add_argument('--load-loader', default='', type=str, metavar='FILENAME',
                     help='')
-
+mean = [0.485, 0.456, 0.406]
+std = [0.229, 0.224, 0.225]
 
 def main():
     global args, min_loss
@@ -149,9 +150,11 @@ def main():
         else:
             print(">> No checkpoint found at '{}'".format(args.resume))
 
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
 
     # Data loading code
-    normalize = transforms.Normalize(mean=model.meta['mean'], std=model.meta['std'])
+    normalize = transforms.Normalize(mean=mean, std=std)
     transform = transforms.Compose([
         transforms.ToTensor(),
         normalize,
@@ -297,8 +300,8 @@ def test(datasets, net):
     net.eval()
     # set up the transform
     normalize = transforms.Normalize(
-        mean=net.meta['mean'],
-        std=net.meta['std']
+        mean=mean,
+        std=std
     )
     transform = transforms.Compose([
         transforms.ToTensor(),
