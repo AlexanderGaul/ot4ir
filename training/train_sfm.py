@@ -4,6 +4,8 @@ import os
 import shutil
 import pickle
 
+from datetime import datetime
+
 import math
 
 import numpy as np
@@ -41,6 +43,10 @@ parser.add_argument('--loss', '-l', metavar='LOSS', default='otmatch',
                     help='training loss options: ' +
                         ' | '.join(loss_names) +
                         ' (default: contrastive)')
+
+parser.add_argument('--training-dataset', '-d', metavar='DATASET', default='retrieval-SfM-120k',
+                    help='training dataset: ' +
+                        ' (default: retrieval-SfM-120k)')
 
 metric_names = ['euclidean', 'ot']
 parser.add_argument('--eval-metric', type=str, default='euclidean')
@@ -87,8 +93,7 @@ def main():
 
     # create export dir if it doesnt exist
     directory = "{}".format(args.training_dataset)
-    directory += "_{}".format(args.arch)
-    directory += "_{}".format(args.pool)
+    directory += "_{}".format(datetime.now().strftime("%m-%d-%H-%M"))
 
 
     model = AttRetrievalNet()
