@@ -17,7 +17,7 @@ import torchvision.transforms as transforms
 from cirtorch.datasets.datahelpers import collate_tuples
 from cirtorch.datasets.traindataset import TuplesDataset
 from cirtorch.datasets.testdataset import configdataset
-
+from cirtorch.utils.whiten import whitenlearn, whitenapply
 from cirtorch.datasets.datahelpers import collate_tuples, cid2filename
 
 from cirtorch.utils.evaluate import compute_map_and_print
@@ -52,6 +52,9 @@ parser.add_argument('--loss-margin', '-lm', metavar='LM', default=0.7, type=floa
 # CHECKPOINTS
 parser.add_argument('--resume', default='', type=str, metavar='FILENAME',
                     help='name of the latest checkpoint (default: None)')
+
+parser.add_argument('--load-loader', default='', type=str, metavar='FILENAME',
+                    help='')
 
 
 def main():
@@ -217,7 +220,11 @@ def train(train_loader, model, criterion, optimizer, epoch) :
     data_time = AverageMeter()
     losses = AverageMeter()
 
-    avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
+    if not args.load_loader :
+        print('create epoch tuples')
+        avg_neg_distance = train_loader.dataset.create_epoch_tuples(model)
+        if args.store_loader :
+            torch.save(train_loader, args.store_loader)
 
     model.train()
 
