@@ -10,7 +10,7 @@ from networks.functional import l2norm_dense
 
 class AttRetrievalNet(nn.Module) :
     def __init__(self):
-        super(self, AttRetrievalNet).__init__()
+        super(AttRetrievalNet, self).__init__()
 
         backbone = models.resnet34(pretrained = True)
 
