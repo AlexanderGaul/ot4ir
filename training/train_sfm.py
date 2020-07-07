@@ -127,8 +127,6 @@ def main():
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=exp_decay)
 
 
-    ## WRAP BACKBONE ##
-    model = AttRetrievalNet(model.features, model.meta)
 
 
 
