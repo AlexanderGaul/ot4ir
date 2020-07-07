@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
 
 import torchvision.models as models
 
@@ -17,6 +17,11 @@ class AttRetrievalNet(nn.Module) :
         self.features = nn.Sequential(*list(backbone.children())[:-2])
 
         self.num_channels = 512
+
+        # TODO ad transofrm parameters
+        self.mean = []
+        self.std = []
+
 
         for i in range(len(self.features) - 2) :
             self.features[i].requires_grad = False
