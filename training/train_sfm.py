@@ -47,6 +47,11 @@ parser.add_argument('--loss', '-l', metavar='LOSS', default='otmatch',
 parser.add_argument('--training-dataset', '-d', metavar='DATASET', default='retrieval-SfM-120k',
                     help='training dataset: ' +
                         ' (default: retrieval-SfM-120k)')
+parser.add_argument('--test-datasets', '-td', metavar='DATASETS', default='roxford5k,rparis6k',
+                    help='comma separated list of test datasets: ' +
+                        ' (default: roxford5k,rparis6k)')
+parser.add_argument('--test-freq', default=1, type=int, metavar='N',
+                    help='run test evaluation every N epochs (default: 1)')
 
 metric_names = ['euclidean', 'ot']
 parser.add_argument('--eval-metric', type=str, default='euclidean')
