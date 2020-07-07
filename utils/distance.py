@@ -1,6 +1,11 @@
 import torch
 
 def pairwise_distances(x, y) :
+    """
+        TODO what are the dimensions
+        requires N X D
+    """
+
     x_norm = (x ** 2).sum(1).view(-1, 1)
     y_t = torch.transpose(y, 0, 1)
     y_norm = (y ** 2).sum(1).view(1, -1)
