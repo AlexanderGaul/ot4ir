@@ -14,7 +14,7 @@ class AttRetrievalNet(nn.Module) :
 
         backbone = models.resnet34(pretrained = True)
 
-        self.features = nn.Sequential(*list(backbone.children()[:-2]))
+        self.features = nn.Sequential(*list(backbone.children())[:-2])
 
         self.num_channels = 512
 
