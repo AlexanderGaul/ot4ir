@@ -94,6 +94,8 @@ parser.add_argument('--load-loader', default='', type=str, metavar='FILENAME',
 mean = [0.485, 0.456, 0.406]
 std = [0.229, 0.224, 0.225]
 
+min_loss = float('inf')
+
 def main():
     global args, min_loss
     args = parser.parse_args()
@@ -254,22 +256,23 @@ def train(train_loader, model, criterion, optimizer, epoch) :
     for i, (input, target) in enumerate(train_loader) :
         nq = len(input)
         ni = len(input[0])
-
-        for q in range(nq) :
+        
+        
+        for q in range(2) :
             _, q_features, q_attention = model(input[q][0].cuda())
+            loss = 0.0
             for ini in range(1, ni) :
                 _, ini_features, ini_attention = model(input[q][ini].cuda())
 
-                loss = criterion((q_features.flatten(-2), q_attention.flatten(-2)),
-                                 (ini_features.flatten(-2), ini_attention.flatten(-2)),
-                                 target[q][ini].cuda())
+                loss = loss + criterion((q_features.flatten(-2).squeeze(0), q_attention.flatten(-2).squeeze(0).squeeze(0)), 
+                                        (ini_features.flatten(-2).squeeze(0), ini_attention.flatten(-2).squeeze(0).squeeze(0)), 
+                                        target[q][ini].cuda())
 
-            input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)],
-                                    dim=0).cuda()
+            # input_batch = torch.cat([torch.nn.functional.interpolate(input[q][imi], (683, 1024)) for imi in range(ni)], dim=0).cuda()
 
-            _, ni_features, ni_attention = model(input_batch)
+            # _, ni_features, ni_attention = model(input_batch)
 
-            loss = criterion(ni_features, ni_attention, target[q].cuda())
+            # loss = criterion(ni_features, ni_attention, target[q].cuda())
             losses.update(loss.item())
             loss.backward()
 
