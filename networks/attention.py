@@ -18,6 +18,11 @@ class AttRetrievalNet(nn.Module) :
 
         self.num_channels = 512
 
+        # TODO ad transofrm parameters
+        self.mean = []
+        self.std = []
+
+
         for i in range(len(self.features) - 2) :
             self.features[i].requires_grad = False
 
