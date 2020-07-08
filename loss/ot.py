@@ -70,7 +70,7 @@ def otmatch_loss(query, target, label, margin, eps):
     target_features, target_attention = target
 
     query_features = query_features.transpose(1,0)
-    target_features = target_features.tranpose(1,0)
+    target_features = target_features.transpose(1,0)
 
 
     ## select top k attention values ##
