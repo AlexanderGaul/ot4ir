@@ -68,9 +68,8 @@ def otmatch_loss(query, target, label, margin, eps):
     """
     query_features, query_attention = query
     target_features, target_attention = target
-
     query_features = query_features.transpose(1,0)
-    target_features = target_features.tranpose(1,0)
+    target_features = target_features.transpose(1,0)
 
 
     ## select top k attention values ##
@@ -82,12 +81,11 @@ def otmatch_loss(query, target, label, margin, eps):
     #
     # qat_sel = query_att[q_sel]
     # tat_sel = target_att.reshape(N-1, -1).gather( 1, t_sel )
-
     M = pairwise_distances(query_features, target_features)
 
     P = log_optimal_transport(M, query_attention, target_attention, 500).exp()
 
-    distance = (query_attention.unsqueeze(1) * query_features - torch.mm(P, target_features.transpose(1,0))).norm(dim=1)
+    distance = (query_attention.unsqueeze(1) * query_features - torch.mm(P, target_features)).norm(dim=1)
     # lbl = label[1:].unsqueeze(1).repeat(1, H * W).flatten().unsqueeze(1)
     return (0.5 * label * torch.pow(distance, 2) +
             0.5 * (1 - label) * torch.pow(torch.clamp(margin - distance, min=0),
