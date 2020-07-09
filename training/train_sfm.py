@@ -224,7 +224,7 @@ def main():
             'state_dict': model.state_dict(),
             'min_loss': min_loss,
             'optimizer' : optimizer.state_dict(),
-        }, is_best, args.directory)
+        }, is_best, args.directory+'/'+directory)
 
     # test
     test(args.test_datasets, model)
