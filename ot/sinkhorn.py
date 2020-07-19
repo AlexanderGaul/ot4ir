@@ -1,5 +1,5 @@
 import torch
-
+import torch.nn as nn
 
 def pairwise_distances(x, y):
     x_norm = (x ** 2).sum(1).view(-1, 1)

@@ -154,7 +154,7 @@ class TuplesDataset(data.Dataset):
 
         print('>> Creating tuples for an epoch of {}-{}...'.format(self.name, self.mode))
         print(">>>> used network: ")
-        print(net.meta_repr())
+        # print(net.meta_repr())
 
         ## ------------------------
         ## SELECTING POSITIVE PAIRS
@@ -192,7 +192,7 @@ class TuplesDataset(data.Dataset):
                 batch_size=1, shuffle=False, num_workers=8, pin_memory=True
             )
             # extract query vectors
-            qvecs = torch.zeros(net.meta['outputdim'], len(self.qidxs)).cuda()
+            qvecs = torch.zeros(net.num_channels, len(self.qidxs)).cuda()
             for i, input in enumerate(loader):
                 qvecs[:, i] = net(input.cuda())[0].data.squeeze()
                 if (i+1) % self.print_freq == 0 or (i+1) == len(self.qidxs):
@@ -206,7 +206,7 @@ class TuplesDataset(data.Dataset):
                 batch_size=1, shuffle=False, num_workers=8, pin_memory=True
             )
             # extract negative pool vectors
-            poolvecs = torch.zeros(net.meta['outputdim'], len(idxs2images)).cuda()
+            poolvecs = torch.zeros(net.num_channels, len(idxs2images)).cuda()
             for i, input in enumerate(loader):
                 poolvecs[:, i] = net(input.cuda())[0].data.squeeze()
                 if (i+1) % self.print_freq == 0 or (i+1) == len(idxs2images):

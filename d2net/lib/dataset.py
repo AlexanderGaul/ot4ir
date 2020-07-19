@@ -19,7 +19,7 @@ from d2net.lib.utils import preprocess_image
 class MegaDepthDataset(Dataset):
     def __init__(
             self,
-            scene_list_path='megadepth_utils/train_scenes.txt',
+            scene_list_path='/d2net/megadepth_utils/train_scenes.txt',
             scene_info_path='/local/dataset/megadepth/scene_info',
             base_path='/local/dataset/megadepth',
             train=True,
@@ -35,7 +35,8 @@ class MegaDepthDataset(Dataset):
             lines = f.readlines()
             for line in lines:
                 self.scenes.append(line.strip('\n'))
-
+        print(self.scenes)
+        self.scenes = self.scenes[:2]
         self.scene_info_path = scene_info_path
         self.base_path = base_path
 
@@ -66,6 +67,7 @@ class MegaDepthDataset(Dataset):
                 self.scene_info_path, '%s.npz' % scene
             )
             if not os.path.exists(scene_info_path):
+                print('scene {} does not exist in {}'.format(scene, scene_info_path))
                 continue
             scene_info = np.load(scene_info_path, allow_pickle=True)
             overlap_matrix = scene_info['overlap_matrix']
@@ -146,9 +148,13 @@ class MegaDepthDataset(Dataset):
         image_path1 = os.path.join(
             self.base_path, pair_metadata['image_path1']
         )
+        
         image1 = Image.open(image_path1)
         if image1.mode != 'RGB':
             image1 = image1.convert('RGB')
+        
+        # RESIZE IMAGE
+        image1 = image1.resize((depth1.shape[1], depth1.shape[0]))
         image1 = np.array(image1)
         assert(image1.shape[0] == depth1.shape[0] and image1.shape[1] == depth1.shape[1])
         intrinsics1 = pair_metadata['intrinsics1']
@@ -166,7 +172,10 @@ class MegaDepthDataset(Dataset):
         image2 = Image.open(image_path2)
         if image2.mode != 'RGB':
             image2 = image2.convert('RGB')
+        # RESIZE IMAGE
+        image2 = image2.resize((depth2.shape[1], depth2.shape[0]))
         image2 = np.array(image2)
+        
         assert(image2.shape[0] == depth2.shape[0] and image2.shape[1] == depth2.shape[1])
         intrinsics2 = pair_metadata['intrinsics2']
         pose2 = pair_metadata['pose2']

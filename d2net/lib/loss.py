@@ -16,7 +16,7 @@ from d2net.lib.utils import (
 )
 from d2net.lib.exceptions import NoGradientError, EmptyTensorError
 
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 
 
 def loss_function(

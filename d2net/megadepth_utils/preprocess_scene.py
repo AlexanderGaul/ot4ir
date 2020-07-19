@@ -34,7 +34,7 @@ base_depth_path = os.path.join(
     base_path, 'phoenix/S6/zl548/MegaDepth_v1'
 )
 base_undistorted_sfm_path = os.path.join(
-    base_path, 'Undistorted_SfM'
+    base_path, 'MegaDepth_v1_undistor_SfM'
 )
 
 undistorted_sparse_path = os.path.join(

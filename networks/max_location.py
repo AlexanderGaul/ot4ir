@@ -19,21 +19,25 @@ class Backbone(nn.Module) :
 
 
 class MaxAttNet(nn.Module) :
-    def __init__(self, use_location=True, use_attention=True, use_unique=True) :
+    def __init__(self, use_location=True, use_attention=True, use_unique=False) :
         super(MaxAttNet, self).__init__()
 
         self.backbone = Backbone()
+        self.reduce = nn.Conv2d(self.backbone.num_channels, self.backbone.num_channels//4, \
+                                      kernel_size=1, padding=0, bias=False)
+        self.locations = EncodeLocations(self.backbone.num_channels//4)
 
-        self.locations = EncodeLocations()
-
-        self.attention = Attention()
+        self.attention = Attention(self.backbone.num_channels//4, self.backbone.num_channels//32)
 
         self.use_unique = use_unique
         self.use_attention = use_attention
         self.use_location = use_location
 
+    # end __init__
+
     def forward(self, batch) :
         features = self.backbone(batch)
+        features = self.reduce(features)
         N, C, H, W = features.shape
 
         # grid
@@ -41,10 +45,16 @@ class MaxAttNet(nn.Module) :
             h = torch.FloatTensor(range(H))
             w = torch.FloatTensor(range(W))
             loc_x, loc_y = torch.meshgrid(h, w)
-            loc = torch.cat((loc_x.reshape(-1,1),  loc_y.reshape(-1,1)), dim=1)
-            features = features + self.locations(loc).repeat(N, C, 1, 1)
+            loc = torch.cat((loc_x.reshape(-1,1),  loc_y.reshape(-1,1)), dim=1).to(batch.device)
+            print(features.shape)
+            print(loc.shape)
+            loc_en = self.locations(loc).transpose(1,0).reshape(1, C, H, W).repeat(N, 1, 1, 1)
+            print(loc_en.shape)
+            features = features + loc_en
+            print(features.shape)            
 
         if self.use_attention :
+            C = self.attention.channels_out
             features = self.attention(features.flatten(-2)).reshape(N, C, H, W)
 
         if self.use_unique :
@@ -58,6 +68,7 @@ class MaxAttNet(nn.Module) :
                 indices_unique, inverse = torch.unique(indices_flat[i, :], return_inverse=True, dim=0)
                 # indices to 2d
                 score = torch.zeros(len(indices_unique))
+                score.to(batch.device)
                 score.index_add_(0, inverse, scores_all[i, :])
                 scores.append(score)
 
@@ -70,7 +81,7 @@ class MaxAttNet(nn.Module) :
             scores, locations, features_sel = max_features(features)
 
         return scores, locations, features_sel, features
-
+    # end forward
 
 
 class EncodeLocations(nn.Module) :
@@ -80,25 +91,48 @@ class EncodeLocations(nn.Module) :
         self.encoder = torch.nn.Linear(2, num_channels)
     def forward(self, batch_locations) :
         return self.encoder(batch_locations)
+# end EncodeLocations
+
+class TransformerEncoder(nn.Module) :
+    def __init__(self, num_channels) :
+        super(TransformerEncoder, self).__init__()
+    
+    def forward(self, input) :
+        return input
+# end TransformerEncoder
+
+
+class TransformerDecoder(nn.Module) :
+    def __init__(self, num_channels) :
+        super(TransformerDecoder, self).__init__()
+# end TransformerDecoder
+
 
 class Attention(nn.Module) :
-    def __init__(self, num_channels):
+    def __init__(self, num_channels, channels_out):
         super(Attention, self).__init__()
 
-        self.Q = torch.nn.Conv2d(num_channels, num_channels, 1)
-        self.K = torch.nn.Conv2d(num_channels, num_channels, 1)
-        self.V = torch.nn.Conv2d(num_channels, num_channels, 1)
-
+        self.Q = torch.nn.Linear(num_channels, channels_out)
+        self.K = torch.nn.Linear(num_channels, channels_out)
+        self.V = torch.nn.Linear(num_channels, channels_out)
+        self.channels_out = channels_out
+        
     def forward(self, batch_flat):
         N, C, HW = batch_flat.shape
+        batch_flat = batch_flat.transpose(1,2)
         Q = self.Q(batch_flat)
         K = self.K(batch_flat)
         V = self.V(batch_flat)
 
         att = F.softmax(torch.bmm(Q.transpose(1,2), K), dim=2)
-        att_features = torch.mm(att, batch_flat.transpose(1,2))
-        return att_features.transpose(1,2)
-
+        print("transformer forward")
+        print(Q.shape)
+        print(att.shape)
+        print(V.shape)
+        att_features = torch.bmm(att, V.transpose(1,2))
+        print(att_features.shape)
+        return att_features
+# end Attention
 
 
 def max_locations(features) :

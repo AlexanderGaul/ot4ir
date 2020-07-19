@@ -34,13 +34,13 @@ def log_optimal_transport(M, mu, nu, iters: int):
     return Z.squeeze(0)
 
 
-def ot_loss(query, target, label, margin, eps) :
+def ot_loss(query, target, label, metric, margin, eps, iterations=500) :
 
     query_features, query_attention = query
     target_features, target_attention = target
 
     query_features = query_features.transpose(1,0)
-    target_features = target_features.tranpose(1,0)
+    target_features = target_features.transpose(1,0)
 
     ## select top k attention values ##
     # q_sel = torch.topk( query_att, 10 )
@@ -51,16 +51,19 @@ def ot_loss(query, target, label, margin, eps) :
     #
     # qat_sel = query_att[q_sel]
     # tat_sel = target_att.reshape(N-1, -1).gather( 1, t_sel )
+    if metric == 'euclidean' :
+        M = pairwise_distances(query_features, target_features)
+    elif metric == 'product' :
+        M = torch.mm(query_features, target_featrues.t())
 
-    M = pairwise_distances(query_features, target_features)
-
-    P = log_optimal_transport(M, query_attention, target_attention, 500).exp()
-
+    P = log_optimal_transport(M, query_attention, target_attention, iterations).exp()
+    d = (M * P).sum()
     # TODO label
-    return (M * P).sum()
+    return 0.5 * label * torch.pow(d, 2) + \
+           0.5 * (1 - label) * torch.pow(torch.clamp(margin - d, min=0), 2)
 
 
-def otmatch_loss(query, target, label, margin, eps):
+def otmatch_loss(query, target, label, metric, margin, eps, iterations=250):
     """
         query, target tuples of features and scores flattened
     Returns:
@@ -71,7 +74,6 @@ def otmatch_loss(query, target, label, margin, eps):
     query_features = query_features.transpose(1,0)
     target_features = target_features.transpose(1,0)
 
-
     ## select top k attention values ##
     # q_sel = torch.topk( query_att, 10 )
     # t_sel = torch.topk( attention[1:, :].reshape(-1, H*W), 10, dim=1 )
@@ -81,15 +83,22 @@ def otmatch_loss(query, target, label, margin, eps):
     #
     # qat_sel = query_att[q_sel]
     # tat_sel = target_att.reshape(N-1, -1).gather( 1, t_sel )
-    M = pairwise_distances(query_features, target_features)
+    if metric == 'euclidean' :
+        M = pairwise_distances(query_features, target_features)
+    elif metric == 'product' :
+        M = torch.mm(query_features, target_features.t())    
 
-    P = log_optimal_transport(M, query_attention, target_attention, 500).exp()
-
+    P = log_optimal_transport(M, query_attention, target_attention, iterations).exp()
+    
     distance = (query_attention.unsqueeze(1) * query_features - torch.mm(P, target_features)).norm(dim=1)
+    # print('distance {}'.format(distance))
+    # print('distane sum {}'.format(distance.sum()))
+    #print('squared sum {}'.format(torch.pow(distance, 2).sum()))
+    # print('match distance sum: {}, label {}'.format(distance.sum(), label))
     # lbl = label[1:].unsqueeze(1).repeat(1, H * W).flatten().unsqueeze(1)
-    return (0.5 * label * torch.pow(distance, 2) +
-            0.5 * (1 - label) * torch.pow(torch.clamp(margin - distance, min=0),
-                                                                             2)).sum()
+    d = distance.sum()
+    return 0.5 * label * torch.pow(d, 2) + \
+           0.5 * (1 - label) * torch.pow(torch.clamp(margin - d, min=0), 2)
 
 
 class OTMatchContrastiveLoss(nn.Module):
@@ -108,13 +117,15 @@ class OTMatchContrastiveLoss(nn.Module):
     >>> output.backward()
     """
 
-    def __init__(self, margin=0.7, eps=1e-6):
+    def __init__(self, metric='euclidean', margin=0.7, eps=1e-6, iterations=250):
         super(OTMatchContrastiveLoss, self).__init__()
         self.margin = margin
         self.eps = eps
+        self.iterations = iterations
+        self.metric = metric
 
     def forward(self, first, second, label):
-        return otmatch_loss(first, second, label, margin=self.margin, eps=self.eps)
+        return otmatch_loss(first, second, label, metric=self.metric, margin=self.margin, eps=self.eps, iterations=self.iterations)
 
     def __repr__(self):
         return self.__class__.__name__ + '(' + 'margin=' + '{:.4f}'.format(self.margin) + ')'
@@ -123,13 +134,14 @@ class OTMatchContrastiveLoss(nn.Module):
 # end OTContrastiveLoss
 
 class OTContrastiveLoss(nn.Module):
-    def __init__(self, margin=0.7, eps=1e-6):
+    def __init__(self, metric='euclidean', margin=0.7, eps=1e-6):
         super(OTContrastiveLoss, self).__init__()
         self.margin = margin
         self.eps = eps
+        self.metric = metric
 
     def forward(self, first, second, label):
-        return ot_loss(first, second, label, margin=self.margin, eps=self.eps)
+        return ot_loss(first, second, label, metric=metric, margin=self.margin, eps=self.eps)
 
     def __repr__(self):
         return self.__class__.__name__ + '(' + 'margin=' + '{:.4f}'.format(self.margin) + ')'

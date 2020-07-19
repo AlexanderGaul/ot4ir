@@ -11,10 +11,9 @@ import numpy as np
 import argparse
 
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-
-matplotlib.use('Agg')
 
 import torch
 
@@ -134,7 +133,7 @@ transform = transforms.Compose([
     normalize
 ])
 
-
+model.eval()
 
 # evaluate on test datasets
 datasets = args.test_datasets.split(',')
@@ -158,7 +157,9 @@ for dataset in datasets:
 
     for i, input in enumerate(loader) :
         _, _, attention = model(input)
-
+        print(attention.shape)
+        attention = attention.detach().squeeze(0).squeeze(0).cpu().numpy()
+        print(attention.shape)
         # todo load image manually without transform
 
         image = mpimg.imread(qimages[i])
@@ -168,9 +169,9 @@ for dataset in datasets:
 
         ax[0].imshow(image)
 
-        ax[1].imshow(attention.cpu().numpy())
+        ax[1].imshow(attention)
 
         # todo add i
         fig.savefig('{}image{}_{}.png'.format(args.image_path, dataset, i))
 
-        fig.close()
+        plt.close()

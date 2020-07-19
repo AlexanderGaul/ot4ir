@@ -9,35 +9,43 @@ from cirtorch.datasets.genericdataset import ImagesFromList
 from networks.functional import l2norm_dense
 
 class AttRetrievalNet(nn.Module) :
-    def __init__(self):
+    def __init__(self, resnet='34', freeze=-2, scale=4):
         super(AttRetrievalNet, self).__init__()
-
-        backbone = models.resnet34(pretrained = True)
+        
+        if resnet == '50' :
+            backbone = models.resnet50(pretrained = True)
+            self.num_channels = 2048
+        elif resnet == '101' :
+            backbone = models.resnet101(pretrained = True)
+            self.num_channels = 2048
+        else :
+            backbone = models.resnet34(pretrained = True)
+            self.num_channels = 512
 
         self.features = nn.Sequential(*list(backbone.children())[:-2])
-
-        self.num_channels = 512
 
         # TODO ad transofrm parameters
         self.mean = []
         self.std = []
 
+        self.scale=scale
 
-        for i in range(len(self.features) - 2) :
-            self.features[i].requires_grad = False
+        if not freeze == 0 :
+            for param in self.features[:freeze].parameters() :
+                param.requires_grad = False
+            
 
         self.att = FeatureAttention(self.num_channels)
 
     def forward(self, input):
         x = self.features(input)
-
-        x_re = F.max_pool2d(x, 4, 4)
-
+        if not self.scale == 1 :
+            x_re = F.max_pool2d(x, self.scale, self.scale)
+        else :
+            x_re = x
         N, C, H, W = x_re.shape
         att = F.softmax( self.att(x_re).reshape(N, 1, -1), dim=2 ).reshape(N, 1, H, W)
-
         x_re = l2norm_dense(x_re) # NORMALIZE LENGTH
-
         scaled = x_re * att
         agg = scaled.sum((2, 3))
 

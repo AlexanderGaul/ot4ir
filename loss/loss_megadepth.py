@@ -20,7 +20,7 @@ def ot_loss(model, batch, device, plot) :
     if not isinstance(scores, list):
         # make to list different sizes of
         scores = [ scores[i, :] for i in range(scores.shape[0]) ]
-        locations = [ locations[i, :] for i in range(scores.shape[0]) ]
+        locations = [ locations[i, :] for i in range(locations.shape[0]) ]
         features_sel = [ features_sel[i, :] for i in range(features_sel.shape[0]) ]
 
     n_valid_samples = 0
@@ -49,16 +49,17 @@ def ot_loss(model, batch, device, plot) :
         scores_2 = scores[idx_in_batch + b]
 
         M = torch.zeros(len(scores_1)+1, len(scores_2)+1)
-        M[:-1, :-1] = pairwise_distances(features_1.transpse(1,0), features_2.transpose(0,1))
+        M[:-1, :-1] = pairwise_distances(features_1.transpose(1,0), features_2.transpose(0,1))
 
         M[-1, :] = 1 # dustbin distance
         M[:-1, -1] = 1 # dustbin distance
 
-        marginal_1 = torch.cat([scores_1, 0])
-        marginal_2 = torch.cat([scores_2, 0])
+        marginal_1 = torch.cat([scores_1, torch.zeros(1).to(scores_1.device)])
+        marginal_2 = torch.cat([scores_2, torch.zeros(1).to(scores_2.device)])
 
         P = log_optimal_transport(M, scores_1, scores_2, 1000).exp()
-
+        
+        print(P)
 
         # CALCULATE GROUND TRUTH
         # warp the positions from image 1 to image 2
@@ -75,6 +76,8 @@ def ot_loss(model, batch, device, plot) :
             continue
         # pos1 and pos2 same format?
         # ids?
+        print(pos1)
+        print(pos2)
 
         fmap_pos2 = torch.round(downscale_positions(pos2, scaling_steps = 5)).long()
 

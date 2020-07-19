@@ -26,7 +26,7 @@ base_depth_path = os.path.join(
     args.base_path, 'phoenix/S6/zl548/MegaDepth_v1'
 )
 output_path = os.path.join(
-    args.base_path, 'Undistorted_SfM'
+    args.base_path, 'MegaDepth_v1_undistor_SfM'
 )
 
 os.mkdir(output_path)

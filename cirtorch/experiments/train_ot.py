@@ -252,7 +252,7 @@ def main():
 
     ## WRAP BACKBONE ##
     model = AttRetrievalNet(model.features, model.meta)
-
+    model.cuda()
 
 
     # optionally resume from a checkpoint
@@ -727,7 +727,7 @@ def ot_loss(features, attention, label, margin, eps) :
     
     M = pairwise_distances(query_features, target_features)
     
-    P = log_optimal_transport(M, query_att, target_att, 500).exp()
+    P = log_optimal_transport(M, query_att, target_att, 250).exp()
     
     distance = ( query_att.unsqueeze(1) * query_features - torch.mm(P, target_features) ).norm(dim=1)
     lbl = label[1:].unsqueeze(1).repeat(1, H*W).flatten().unsqueeze(1)
